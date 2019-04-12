@@ -1,8 +1,10 @@
 package telegram.client;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
-import telegram.*;
+import telegram.Markup;
+import telegram.Message;
+import telegram.ReplyKeyboardRemove;
+import telegram.TelegramRequest;
 import telegram.button.InlineKeyboardButton;
 import telegram.button.InlineKeyboardMarkup;
 import telegram.button.KeyboardButton;
@@ -84,8 +86,8 @@ public abstract class TelegramClient {
 	}
 
 	public void sendPhoto(String photo, String caption, Markup markup, Message message) {
-		restTemplate.postForEntity("/sendPhoto",
-				new TelegramRequest(message.getChat().getId(), markup, photo, caption), Void.class);
+		restTemplate.postForEntity(urlMap.get(message.getPlatform().name()) + "/sendPhoto",
+								new TelegramRequest(message.getChat().getId(), markup, photo, caption), Void.class);
 	}
 
 	public abstract void sendActions(Message message);
@@ -119,14 +121,7 @@ public abstract class TelegramClient {
 	private static Map<String, String> processMap(String urls){
 		String[] urlss = urls.split(",");
 		Map<String, String> map = new HashMap<>();
-		String key = "";
-		for (int i = 0; i < urlss.length; i++) {
-			if (i%2 == 0) {
-				key = urlss[i];
-			} else {
-				map.put(key, urlss[i]);
-			}
-		}
+		for (int i = 0; i < urlss.length - 1; i += 2) map.put(urlss[i], urlss[i + 1]);
 		return map;
 	}
 
