@@ -1,8 +1,6 @@
 package telegram.client;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.boot.web.client.RootUriTemplateHandler;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.client.RestTemplate;
 import telegram.*;
 import telegram.button.InlineKeyboardButton;
@@ -10,20 +8,21 @@ import telegram.button.InlineKeyboardMarkup;
 import telegram.button.KeyboardButton;
 import telegram.button.KeyboardMarkup;
 
-
 import java.util.*;
 
 public abstract class TelegramClient {
 	private final String TELEGRAM_URL;
 	private final String SERVER_URL;
 	private final String WEBHOOK;
+	private final Map<String, String> urlMap;
 	private RestTemplate restTemplate;
 
-	public TelegramClient(String telegramUrl, String serverUrl, String webhook) {
+	public TelegramClient(String telegramUrl, String serverUrl, String webhook, String urls) {
 		TELEGRAM_URL = telegramUrl;
 		SERVER_URL = serverUrl;
 		WEBHOOK = webhook;
-		restTemplate = new RestTemplateBuilder().uriTemplateHandler(new RootUriTemplateHandler(TELEGRAM_URL)).build();
+		restTemplate = new RestTemplate();
+		urlMap = processMap(urls);
 	}
 
 	/**
@@ -32,20 +31,23 @@ public abstract class TelegramClient {
 	 */
 	public void setWebHooks() {
 		String[] webhooks = WEBHOOK.split(",");
-
-		for (String webhook : webhooks) {
-			setWebHook(webhook);
+		String[] urls = TELEGRAM_URL.split(",");
+		for (int i = 0; i < webhooks.length; i++) {
+			String webhook = webhooks[i];
+			String url = urls[i];
+			setWebHook(webhook, url);
 		}
 
 	}
 
-	protected void setWebHook(String webhook){
-		restTemplate.getForEntity("/setWebhook?url=" + SERVER_URL + webhook, Object.class);
+	protected void setWebHook(String webhook, String url){
+		restTemplate.getForEntity(url + "/setWebhook?url=" + SERVER_URL + webhook, Object.class);
 	}
 
 	protected void sendMessage(TelegramRequest telegramRequest) {
 		try {
-			restTemplate.postForEntity("/sendMessage", telegramRequest, Void.class);
+			restTemplate.postForEntity(urlMap.get(telegramRequest.getPlatform().name()) + "/sendMessage",
+																				telegramRequest, Void.class);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
@@ -53,18 +55,18 @@ public abstract class TelegramClient {
 	}
 
 	public void helloMessage(Message message) {
-		String messange = ResourceBundle.getBundle("dictionary").getString("HELLO_MESSAGE");
+		String helloMessage = ResourceBundle.getBundle("dictionary").getString("HELLO_MESSAGE");
 		int chatId = message.getChat().getId();
-		sendMessage(new TelegramRequest(messange, chatId));
+		sendMessage(new TelegramRequest(helloMessage, chatId, message.getPlatform()));
 	}
 
 	public void simpleMessage(String message, Message m) {
-		sendMessage(new TelegramRequest(message, m.getChat().getId()));
+		sendMessage(new TelegramRequest(message, m.getChat().getId(), m.getPlatform()));
 	}
 
 	public void errorMessage(Message message) {
 		String text = "men, i don`t understand this command, try again)";
-		sendMessage(new TelegramRequest(text, message.getChat().getId()));
+		sendMessage(new TelegramRequest(text, message.getChat().getId(), message.getPlatform()));
 	}
 
 	public void sendButtons(Markup markup, String text, Message message) {
@@ -72,6 +74,7 @@ public abstract class TelegramClient {
 		telegramRequest.setChatId(message.getChat().getId());
 		telegramRequest.setText(text);
 		telegramRequest.setMarkup(markup);
+		telegramRequest.setPlatform(message.getPlatform());
 		sendMessage(telegramRequest);
 	}
 
@@ -112,4 +115,19 @@ public abstract class TelegramClient {
 		telegramRequest.setChatId(message.getChat().getId());
 		sendMessage(telegramRequest);
 	}
+
+	private static Map<String, String> processMap(String urls){
+		String[] urlss = urls.split(",");
+		Map<String, String> map = new HashMap<>();
+		String key = "";
+		for (int i = 0; i < urlss.length; i++) {
+			if (i%2 == 0) {
+				key = urlss[i];
+			} else {
+				map.put(key, urlss[i]);
+			}
+		}
+		return map;
+	}
+
 }

@@ -13,10 +13,17 @@ public class TelegramRequest {
 	private Integer chatId;
 	@JsonProperty("reply_markup")
 	private Markup markup;
+	private Platform platform;
 
 	public TelegramRequest(String text, Integer chatId) {
 		this.text = text;
 		this.chatId = chatId;
+	}
+
+	public TelegramRequest(String text, Integer chatId, Platform platform) {
+		this.text = text;
+		this.chatId = chatId;
+		this.platform = platform;
 	}
 
 	public TelegramRequest() {
@@ -75,5 +82,13 @@ public class TelegramRequest {
 
 	public void setMarkup(Markup markup) {
 		this.markup = markup;
+	}
+
+	public Platform getPlatform() {
+		return platform;
+	}
+
+	public void setPlatform(Platform platform) {
+		this.platform = platform;
 	}
 }

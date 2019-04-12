@@ -1,4 +1,7 @@
 package telegram;
 
-public enum Platform {
+public interface Platform {
+
+	String name();
+
 }
