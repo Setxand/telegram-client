@@ -13,14 +13,12 @@ import telegram.button.KeyboardMarkup;
 import java.util.*;
 
 public abstract class TelegramClient {
-	private final String TELEGRAM_URL;
 	private final String SERVER_URL;
 	private final String WEBHOOK;
 	private final Map<String, String> urlMap;
 	private RestTemplate restTemplate;
 
-	public TelegramClient(String telegramUrl, String serverUrl, String webhook, String urls) {
-		TELEGRAM_URL = telegramUrl;
+	public TelegramClient(String serverUrl, String webhook, String urls) {
 		SERVER_URL = serverUrl;
 		WEBHOOK = webhook;
 		restTemplate = new RestTemplate();
@@ -33,11 +31,10 @@ public abstract class TelegramClient {
 	 */
 	public void setWebHooks() {
 		String[] webhooks = WEBHOOK.split(",");
-		String[] urls = TELEGRAM_URL.split(",");
 		for (int i = 0; i < webhooks.length; i++) {
 			String webhook = webhooks[i];
-			String url = urls[i];
-			setWebHook(webhook, url);
+			List<String> strings = new ArrayList<>(urlMap.values());
+			setWebHook(webhook, strings.get(i));
 		}
 
 	}
@@ -120,7 +117,7 @@ public abstract class TelegramClient {
 
 	private static Map<String, String> processMap(String urls){
 		String[] urlss = urls.split(",");
-		Map<String, String> map = new HashMap<>();
+		Map<String, String> map = new LinkedHashMap<>();
 		for (int i = 0; i < urlss.length - 1; i += 2) map.put(urlss[i], urlss[i + 1]);
 		return map;
 	}
