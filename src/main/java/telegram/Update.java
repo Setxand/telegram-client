@@ -10,6 +10,7 @@ public class Update {
 	@JsonProperty("callback_query")
 	private CallBackQuery callBackQuery;
 	private Message message;
+	private Platform platform;
 
 	public Integer getUpdateId() {
 		return updateId;
@@ -33,5 +34,20 @@ public class Update {
 
 	public void setMessage(Message message) {
 		this.message = message;
+	}
+
+	public Platform getPlatform() {
+		return platform;
+	}
+
+	public void setPlatform(Platform platform) {
+		this.platform = platform;
+		if (this.getMessage() != null) {
+			message.setPlatform(platform);
+		}
+
+		if (callBackQuery != null) {
+			callBackQuery.getMessage().setPlatform(platform);
+		}
 	}
 }

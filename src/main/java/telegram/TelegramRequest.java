@@ -14,6 +14,9 @@ public class TelegramRequest {
 	@JsonProperty("reply_markup")
 	private Markup markup;
 	private Platform platform;
+	@JsonProperty("message_id")
+	public Integer messageId;
+	public String command = "/sendMessage";
 
 	public TelegramRequest(String text, Integer chatId) {
 		this.text = text;

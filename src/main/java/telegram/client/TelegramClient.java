@@ -1,19 +1,18 @@
 package telegram.client;
 
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import telegram.Markup;
 import telegram.Message;
 import telegram.ReplyKeyboardRemove;
 import telegram.TelegramRequest;
-import telegram.button.InlineKeyboardButton;
-import telegram.button.InlineKeyboardMarkup;
-import telegram.button.KeyboardButton;
-import telegram.button.KeyboardMarkup;
+import telegram.button.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class TelegramClient {
-	private final String SERVER_URL;
+	protected final String SERVER_URL;
 	private final String WEBHOOK;
 	private final Map<String, String> urlMap;
 	private RestTemplate restTemplate;
@@ -36,7 +35,6 @@ public abstract class TelegramClient {
 			List<String> strings = new ArrayList<>(urlMap.values());
 			setWebHook(webhook, strings.get(i));
 		}
-
 	}
 
 	protected void setWebHook(String webhook, String url){
@@ -45,12 +43,11 @@ public abstract class TelegramClient {
 
 	protected void sendMessage(TelegramRequest telegramRequest) {
 		try {
-			restTemplate.postForEntity(urlMap.get(telegramRequest.getPlatform().name()) + "/sendMessage",
+			restTemplate.postForEntity(urlMap.get(telegramRequest.getPlatform().name()) + telegramRequest.command,
 																				telegramRequest, Void.class);
-		} catch (Exception ex) {
-			ex.printStackTrace();
+		} catch (HttpClientErrorException ex) {
+			throw new RuntimeException("Telegram request error : " + ex.getResponseBodyAsString());
 		}
-
 	}
 
 	public void helloMessage(Message message) {
@@ -77,34 +74,23 @@ public abstract class TelegramClient {
 		sendMessage(telegramRequest);
 	}
 
-	public void sendInlineButtons(List<List<InlineKeyboardButton>> buttons, String text, Message message) {
-		Markup markup = new InlineKeyboardMarkup(buttons);
-		sendButtons(markup, text, message);
-	}
-
 	public void sendPhoto(String photo, String caption, Markup markup, Message message) {
 		restTemplate.postForEntity(urlMap.get(message.getPlatform().name()) + "/sendPhoto",
 								new TelegramRequest(message.getChat().getId(), markup, photo, caption), Void.class);
 	}
 
-	public abstract void sendActions(Message message);
-
 	public void simpleQuestion(String splitter, String text, Message message){
-		List<InlineKeyboardButton> inlineKeyboardButtons = new ArrayList<>();
 		String yes = ResourceBundle.getBundle("dictionary").getString("YES");
 		String no = ResourceBundle.getBundle("dictionary").getString("NO");
-		inlineKeyboardButtons.add(new InlineKeyboardButton(yes, "Yes" + splitter + "QUESTION_YES"));
-		inlineKeyboardButtons.add(new InlineKeyboardButton(no, "No" + splitter + "QUESTION_NO"));
-		sendInlineButtons(new ArrayList<>(Collections.singletonList(inlineKeyboardButtons)), text, message);
+		Markup buttonListMarkup = createButtonListMarkup(true,
+												new InlineKeyboardButton(yes, "Yes" + splitter + "QUESTION_YES"),
+												new InlineKeyboardButton(no, "No" + splitter + "QUESTION_NO"));
+		sendButtons(buttonListMarkup, text, message);
 	}
 
 	public void noEnoughPermissions(Message message) {
 		String text = "You have not enough permissions to make it!";
 		simpleMessage(text, message);
-	}
-
-	public void sendKeyboardButtons(Message message, List<List<KeyboardButton>> buttons, String text) {
-		sendButtons(new KeyboardMarkup(buttons), text, message);
 	}
 
 	public void removeKeyboardButtons(Message message) {
@@ -115,6 +101,16 @@ public abstract class TelegramClient {
 		sendMessage(telegramRequest);
 	}
 
+	public void editInlineButtons(Markup markup, Message message) {
+		TelegramRequest request = new TelegramRequest();
+		request.command = "/editMessageReplyMarkup";
+		request.messageId = message.getMessageId();
+		request.setChatId(message.getChat().getId());
+		request.setMarkup(markup);
+		request.setPlatform(message.getPlatform());
+		sendMessage(request);
+	}
+
 	private static Map<String, String> processMap(String urls){
 		String[] urlss = urls.split(",");
 		Map<String, String> map = new LinkedHashMap<>();
@@ -122,4 +118,20 @@ public abstract class TelegramClient {
 		return map;
 	}
 
+	protected List<List<Button>> createButtonList(boolean horizontal, Button... buttons) {
+		List<Button> buttonList = Arrays.asList(buttons);
+		return horizontal ? Collections.singletonList(buttonList) :
+								buttonList.stream().map(Arrays::asList).collect(Collectors.toList());
+	}
+
+	protected Markup createButtonListMarkup(boolean horizontal, Button... buttons) {
+		List<List<Button>> complexButtons = createButtonList(horizontal, buttons);
+		return keyBoardOrInline(complexButtons);
+	}
+
+
+	private static Markup keyBoardOrInline(List<List<Button>> complexButtons) {
+		return complexButtons.get(0).get(0) instanceof KeyboardButton ? new KeyboardMarkup(complexButtons) :
+				new InlineKeyboardMarkup(complexButtons);
+	}
 }
