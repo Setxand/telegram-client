@@ -6,6 +6,8 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -16,6 +18,7 @@ import telegram.ReplyKeyboardRemove;
 import telegram.TelegramRequest;
 import telegram.button.*;
 
+import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,13 +31,19 @@ public abstract class TelegramClient {
 	public TelegramClient(String serverUrl, String webhook, String urls) {
 		SERVER_URL = serverUrl;
 		WEBHOOK = webhook;
+
 		restTemplate = new RestTemplate();
+		MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+		converter.setSupportedMediaTypes(
+				Arrays.asList(MediaType.APPLICATION_JSON, MediaType.APPLICATION_OCTET_STREAM));
+		restTemplate.setMessageConverters(Arrays.asList(converter, new FormHttpMessageConverter()));
+
 		urlMap = processMap(urls);
 	}
 
 	/**
 	 * @Example Webhooks in application.properties:
-	 *			telegram.webhooks=/example1,/example2
+	 * telegram.webhooks=/example1,/example2
 	 */
 	public void setWebHooks() {
 		String[] webhooks = WEBHOOK.split(",");
@@ -45,14 +54,14 @@ public abstract class TelegramClient {
 		}
 	}
 
-	protected void setWebHook(String webhook, String url){
+	protected void setWebHook(String webhook, String url) {
 		restTemplate.getForEntity(url + "/setWebhook?url=" + SERVER_URL + webhook, Object.class);
 	}
 
 	protected void sendMessage(TelegramRequest telegramRequest) {
 		try {
 			restTemplate.postForEntity(urlMap.get(telegramRequest.getPlatform().name()) + telegramRequest.command,
-																				telegramRequest, Void.class);
+					telegramRequest, Void.class);
 		} catch (HttpClientErrorException ex) {
 			throw new RuntimeException("Telegram request error : " + ex.getResponseBodyAsString());
 		}
@@ -84,15 +93,15 @@ public abstract class TelegramClient {
 
 	public void sendPhoto(String photo, String caption, Markup markup, Message message) {
 		restTemplate.postForEntity(urlMap.get(message.getPlatform().name()) + "/sendPhoto",
-								new TelegramRequest(message.getChat().getId(), markup, photo, caption), Void.class);
+				new TelegramRequest(message.getChat().getId(), markup, photo, caption), Void.class);
 	}
 
-	public void simpleQuestion(String splitter, String text, Message message){
+	public void simpleQuestion(String splitter, String text, Message message) {
 		String yes = ResourceBundle.getBundle("dictionary").getString("YES");
 		String no = ResourceBundle.getBundle("dictionary").getString("NO");
 		Markup buttonListMarkup = createButtonListMarkup(true,
-												new InlineKeyboardButton(yes, "Yes" + splitter + "QUESTION_YES"),
-												new InlineKeyboardButton(no, "No" + splitter + "QUESTION_NO"));
+				new InlineKeyboardButton(yes, "Yes" + splitter + "QUESTION_YES"),
+				new InlineKeyboardButton(no, "No" + splitter + "QUESTION_NO"));
 		sendButtons(buttonListMarkup, text, message);
 	}
 
@@ -142,14 +151,28 @@ public abstract class TelegramClient {
 		restTemplate.postForEntity(serverUrl, requestEntity, String.class);
 	}
 
+
+	public InputStream loadDoc(Message message, String path) {
+		String url = urlMap.get(message.getPlatform().name());
+		StringBuilder stringBuilder = new StringBuilder(url);
+		stringBuilder.insert(stringBuilder.indexOf("/bot"), "/file");
+		stringBuilder.append("/").append(path);
+
+		return restTemplate.exchange(stringBuilder.toString(),
+				HttpMethod.GET,
+				null,
+				InputStream.class).getBody();
+	}
+
 	public Map<String, Object> getDocument(String docId, Message message) {
 		return restTemplate.exchange(urlMap.get(message.getPlatform().name()) + "/getFile?file_id=" + docId,
 				HttpMethod.GET,
 				null,
-				new ParameterizedTypeReference<Map<String, Object>>(){}).getBody();
+				new ParameterizedTypeReference<Map<String, Object>>() {
+				}).getBody();
 	}
 
-	private static Map<String, String> processMap(String urls){
+	private static Map<String, String> processMap(String urls) {
 		String[] urlss = urls.split(",");
 		Map<String, String> map = new LinkedHashMap<>();
 		for (int i = 0; i < urlss.length - 1; i += 2) map.put(urlss[i], urlss[i + 1]);
@@ -159,7 +182,7 @@ public abstract class TelegramClient {
 	protected List<List<Button>> createButtonList(boolean horizontal, Button... buttons) {
 		List<Button> buttonList = Arrays.asList(buttons);
 		return horizontal ? Collections.singletonList(buttonList) :
-								buttonList.stream().map(Arrays::asList).collect(Collectors.toList());
+				buttonList.stream().map(Arrays::asList).collect(Collectors.toList());
 	}
 
 	protected Markup createButtonListMarkup(boolean horizontal, Button... buttons) {

@@ -11,7 +11,6 @@ public class Update {
 	private CallBackQuery callBackQuery;
 	private Message message;
 	private Platform platform;
-	public Document document;
 
 	public Integer getUpdateId() {
 		return updateId;

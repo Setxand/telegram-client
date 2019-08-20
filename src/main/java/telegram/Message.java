@@ -16,6 +16,7 @@ public class Message {
 	private Platform platform;
 	private List<TelegramEntity> entities;
 	private List<Photo> photo;
+	public Document document;
 
 	public Message() {
 	}
