@@ -111,6 +111,15 @@ public abstract class TelegramClient {
 		sendMessage(request);
 	}
 
+	public void deleteMessage(Message message) {
+		TelegramRequest request = new TelegramRequest();
+		request.command = "/deleteMessage";
+		request.messageId = message.getMessageId();
+		request.setChatId(message.getChat().getId());
+		request.setPlatform(message.getPlatform());
+		sendMessage(request);
+	}
+
 	private static Map<String, String> processMap(String urls){
 		String[] urlss = urls.split(",");
 		Map<String, String> map = new LinkedHashMap<>();
