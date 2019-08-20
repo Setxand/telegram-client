@@ -1,5 +1,13 @@
 package telegram.client;
 
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import telegram.Markup;
@@ -118,6 +126,27 @@ public abstract class TelegramClient {
 		request.setChatId(message.getChat().getId());
 		request.setPlatform(message.getPlatform());
 		sendMessage(request);
+	}
+
+	public void sendFile(Message message, FileSystemResource file) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		body.add("document", file);
+		body.add("chat_id", message.getChat().getId());
+
+		HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+		String serverUrl = urlMap.get(message.getPlatform().name()) + "/sendDocument";
+
+		restTemplate.postForEntity(serverUrl, requestEntity, String.class);
+	}
+
+	public Map<String, Object> getDocument(String docId, Message message) {
+		return restTemplate.exchange(urlMap.get(message.getPlatform().name()) + "/getFile?file_id=" + docId,
+				HttpMethod.GET,
+				null,
+				new ParameterizedTypeReference<Map<String, Object>>(){}).getBody();
 	}
 
 	private static Map<String, String> processMap(String urls){

@@ -17,6 +17,7 @@ public class TelegramRequest {
 	@JsonProperty("message_id")
 	public Integer messageId;
 	public String command = "/sendMessage";
+	public Object document;
 
 	public TelegramRequest(String text, Integer chatId) {
 		this.text = text;
